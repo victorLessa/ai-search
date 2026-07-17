@@ -3,7 +3,7 @@ import tempfile
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from mangum import Mangum
-from docling.document_converter import DocumentConverter
+import pymupdf4llm
 
 app = FastAPI()
 
@@ -33,9 +33,7 @@ async def convert_document_to_markdown(file: UploadFile = File(...)):
         tmp_path = tmp.name
 
     try:
-        converter = DocumentConverter()
-        result = converter.convert(tmp_path)
-        markdown = result.document.export_to_markdown()
+        markdown = pymupdf4llm.to_markdown(tmp_path)
     finally:
         os.unlink(tmp_path)
 

@@ -2,4 +2,4 @@ fastapi
 mangum
 python-multipart
 uvicorn
-docling
+pymupdf4llm
