@@ -1,5 +1,5 @@
 fastapi
 mangum
-httpx
 python-multipart
 uvicorn
+docling

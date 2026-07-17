@@ -1,15 +1,14 @@
 import os
-import httpx
+import tempfile
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from mangum import Mangum
+from docling.document_converter import DocumentConverter
 
 app = FastAPI()
 
 ALLOWED_CONTENT_TYPES = {"application/pdf"}
 ALLOWED_EXTENSIONS = {".pdf"}
-
-DOCLING_SERVE_URL = os.environ.get("DOCLING_SERVE_URL", "").rstrip("/")
 
 
 @app.get("/api")
@@ -27,42 +26,7 @@ async def convert_document_to_markdown(file: UploadFile = File(...)):
             detail=f"Unsupported file type '{file.content_type}'. Only PDF files are accepted.",
         )
 
-    if not DOCLING_SERVE_URL:
-        raise HTTPException(
-            status_code=503,
-            detail="DOCLING_SERVE_URL environment variable is not configured.",
-        )
-
     contents = await file.read()
-
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        response = await client.post(
-            f"{DOCLING_SERVE_URL}/v1alpha/convert/file",
-            files={"files": (file.filename, contents, "application/pdf")},
-            data={"to_formats": "md"},
-        )
-
-    if response.status_code != 200:
-        raise HTTPException(
-            status_code=502,
-            detail=f"docling-serve returned {response.status_code}: {response.text}",
-        )
-
-    data = response.json()
-    markdown = data["document"]["md_content"]
-
-    return JSONResponse(
-        content={
-            "filename": file.filename,
-            "content_type": file.content_type,
-            "markdown": markdown,
-        }
-    )
-
-
-# Handler para o runtime serverless da Vercel
-handler = Mangum(app)
-
 
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
         tmp.write(contents)
