@@ -3,12 +3,22 @@ import tempfile
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from mangum import Mangum
+from pydantic import BaseModel
 import pymupdf4llm
-
+from sentence_transformers import SentenceTransformer
+from supabase import create_client
+    
 app = FastAPI()
 
 ALLOWED_CONTENT_TYPES = {"application/pdf"}
 ALLOWED_EXTENSIONS = {".pdf"}
+
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
+
+class DocumentInput(BaseModel):
+    title: str
+    body: str
 
 
 @app.get("/api")
@@ -44,6 +54,27 @@ async def convert_document_to_markdown(file: UploadFile = File(...)):
             "markdown": markdown,
         }
     )
+
+
+@app.post("/api/documents/embed", status_code=201)
+async def embed_and_store_document(doc: DocumentInput):
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="SUPABASE_URL or SUPABASE_KEY environment variable is not configured.",
+        )
+
+    model = SentenceTransformer("Supabase/gte-small")
+    embedding = model.encode(doc.body, normalize_embeddings=True).tolist()
+
+    client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    result = client.from_("documents").insert({
+        "title": doc.title,
+        "body": doc.body,
+        "embedding": embedding,
+    }).execute()
+
+    return JSONResponse(status_code=201, content={"data": result.data})
 
 
 @app.get("/api/users/{user_id}")

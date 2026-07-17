@@ -3,3 +3,5 @@ mangum
 python-multipart
 uvicorn
 pymupdf4llm
+sentence-transformers
+supabase
